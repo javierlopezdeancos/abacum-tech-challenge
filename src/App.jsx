@@ -6,9 +6,37 @@ const rowStyle = {
   display: 'flex',
 };
 
+const WIN_LINES = [
+  [0, 1, 2],
+  [3, 4, 5],
+  [6, 7, 8],
+  [0, 3, 6],
+  [1, 4, 7],
+  [2, 5, 8],
+  [0, 4, 8],
+  [2, 4, 6],
+];
+
+function getWinningLine(squares) {
+  for (const [a, b, c] of WIN_LINES) {
+    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+      return [a, b, c];
+    }
+  }
+  return null;
+}
+
+function getOutcomeMessage(winner) {
+  if (winner === 'X') return 'You wins!!!';
+  if (winner === 'O') return 'Computer wins!!';
+  if (winner === 'Draw') return 'Anyone wins';
+  return '';
+}
+
 const squareStyle = {
   width: '60px',
   height: '60px',
+  boxSizing: 'border-box',
   backgroundColor: 'white',
   margin: '4px',
   display: 'flex',
@@ -16,7 +44,7 @@ const squareStyle = {
   alignItems: 'center',
   fontSize: '28px',
   color: 'black',
-  border: '2px solid black'
+  border: '2px solid black',
 };
 
 const boardStyle = {
@@ -54,14 +82,22 @@ const buttonStyle = {
   cursor: 'pointer',
 };
 
-function Square({ value, onClick, disabled }) {
+function Square({ value, onClick, disabled, isWinningSquare, winnerDecided }) {
+  const border = isWinningSquare
+    ? '5px solid black'
+    : winnerDecided
+      ? '2px solid #bbbbbb'
+      : '2px solid black';
+
   return (
     <div
       className="square"
       style={{
         ...squareStyle,
+        border,
         cursor: disabled ? 'default' : 'pointer',
-        backgroundColor: disabled && "#d8d8d8",
+        backgroundColor: isWinningSquare ? '#707070' : disabled ? '#d8d8d8' : 'white',
+        color: isWinningSquare ? 'white' : 'black',
       }}
       onClick={disabled ? undefined : onClick}
       role="button"
@@ -79,6 +115,10 @@ function Square({ value, onClick, disabled }) {
 }
 
 function Board({ board, isXNext, winner, onSquareClick, onReset }) {
+  const winnerDecided = winner === 'X' || winner === 'O';
+  const winningLine = winnerDecided ? getWinningLine(board) : null;
+  const winningSet = winningLine ? new Set(winningLine) : null;
+
   return (
     <div style={containerStyle} className="gameBoard">
       {!winner && (
@@ -88,7 +128,7 @@ function Board({ board, isXNext, winner, onSquareClick, onReset }) {
       )}
       {winner && (
         <div id="winnerArea" className="winner" style={instructionsStyle}>
-          Winner: <span>{winner}</span>
+          {getOutcomeMessage(winner)}
         </div>
       )}
       <div style={boardStyle}>
@@ -102,6 +142,8 @@ function Board({ board, isXNext, winner, onSquareClick, onReset }) {
                   value={board[i]}
                   onClick={() => onSquareClick(i)}
                   disabled={Boolean(winner) || Boolean(board[i]) || !isXNext}
+                  isWinningSquare={Boolean(winningSet?.has(i))}
+                  winnerDecided={winnerDecided}
                 />
               );
             })}
@@ -137,22 +179,9 @@ function Game() {
   const confettiFiredForRound = useRef(false);
 
   const calculateWinner = (squares) => {
-    const lines = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6],
-    ];
-    for (let i = 0; i < lines.length; i++) {
-      const [a, b, c] = lines[i];
-
-      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-        return squares[a];
-      }
+    const line = getWinningLine(squares);
+    if (line) {
+      return squares[line[0]];
     }
 
     if (squares.every((square) => square !== null)) {
@@ -174,21 +203,15 @@ function Game() {
   }, [winner]);
 
   function getBestMove(squares) {
-    const lines = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8],
-      [0, 3, 6], [1, 4, 7], [2, 5, 8],
-      [0, 4, 8], [2, 4, 6],
-    ];
-
     // 1. Try to win
-    for (const [a, b, c] of lines) {
+    for (const [a, b, c] of WIN_LINES) {
       if (squares[a] === 'O' && squares[b] === 'O' && !squares[c]) return c;
       if (squares[a] === 'O' && squares[c] === 'O' && !squares[b]) return b;
       if (squares[b] === 'O' && squares[c] === 'O' && !squares[a]) return a;
     }
 
     // 2. Block X
-    for (const [a, b, c] of lines) {
+    for (const [a, b, c] of WIN_LINES) {
       if (squares[a] === 'X' && squares[b] === 'X' && !squares[c]) return c;
       if (squares[a] === 'X' && squares[c] === 'X' && !squares[b]) return b;
       if (squares[b] === 'X' && squares[c] === 'X' && !squares[a]) return a;
